@@ -20,8 +20,8 @@ knitr::opts_chunk$set(cache=FALSE)
 ```{r file_locations, echo=FALSE, message=FALSE}
 
 library(XLConnect)
-non_cohort <- "F:/R&C/Data/Work Programme NEW/Briefing Dec 2015/work-programme-time-series-to-sept-2015/"
-cohort <- "F:/R&C/Data/Work Programme NEW/Briefing Dec 2015/work-programme-cohort-data-to-sept-2015-csv/"
+non_cohort <- "./Briefing Dec 2015/work-programme-time-series-to-sept-2015/"
+cohort <- "./Briefing Dec 2015/work-programme-cohort-data-to-sept-2015-csv/"
 data_date <- "September 2015"
 MPL_year <- "Oct 2014-Sep 2015"
 current_quarter <- "July to September 2015"
@@ -40,7 +40,7 @@ library(scales)
 library(ggthemes)
 library(zoo)
 library(grid)
-source("F:/R&C/Data/123FILES/R scripts/inclusion_pal.R")
+source("lwi_pal.R")
 gb_non <- zoo::na.trim(read.csv(paste0(non_cohort, "gb_slice.csv")))
 gb_non <- gb_non[!duplicated(gb_non),]
 gb_non_pg <- read.csv(paste0(non_cohort, "gb_payment_group_slice.csv"))
@@ -68,7 +68,7 @@ gb_non_pg_simple <- gb_non_pg_simple[gb_non_pg_simple$PAYMENT_GROUP %in% c(10,20
 gb_non_pg_simple <- dcast(gb_non_pg_simple, MONTH ~ name, value.var= "NO_OF_REFERRALS")
 zoo_non_pg <- zooreg(gb_non_pg_simple[2:10], start=c(2011,6), frequency = 12)
 fortified <- fortify.zoo(zoo_non_pg, melt=TRUE)
-c <- ggplot(fortified, aes(x=Index, y=Value, fill= Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg = FALSE) + scale_fill_inclusion() + guides(fill=guide_legend(nrow=3)) + scale_y_continuous(labels=comma) + labs(y="Monthly referrals", x= "Month of referral")
+c <- ggplot(fortified, aes(x=Index, y=Value, fill= Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg = FALSE) + scale_fill_lwi() + guides(fill=guide_legend(nrow=3)) + scale_y_continuous(labels=comma) + labs(y="Monthly referrals", x= "Month of referral")
 latest_referrals <- rollsum(tail(zoo_non_pg,12),3)
 latest_referrals <- as.data.frame(tail(latest_referrals,1))
 
@@ -202,7 +202,7 @@ payments <- merge.zoo(attach_payments, outcome_payments, sustain_payments)
 names(payments) <- c("Attachment fees", "Job Outcome payments", "Sustainment payments")
 money <- fortify.zoo(model = payments, melt = TRUE)
 
-ggmoney <- ggplot(money, aes(x=Index, y=Value, fill=Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg=FALSE) + scale_fill_inclusion() + labs(x="", y="") + scale_y_continuous(labels=dollar_format(prefix = "\u00A3")) 
+ggmoney <- ggplot(money, aes(x=Index, y=Value, fill=Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg=FALSE) + scale_fill_lwi() + labs(x="", y="") + scale_y_continuous(labels=dollar_format(prefix = "\u00A3")) 
 ```
 
 ```{r read_cohort_gb, echo=FALSE}
@@ -226,12 +226,12 @@ oldgbsummary<- c(0.119, 0.253, 0.280)
 gbsummary <- joprofile[c(13,25,31)]
 write.csv(joperc, "overall_cohort_performance_ts.csv")
 
-library(ggplot2)
-library(ggthemes)
-library(scales)
-library(reshape2)
+#library(ggplot2)
+#library(ggthemes)
+#library(scales)
+#library(reshape2)
 p <- autoplot.zoo(joperc, facets=NULL)
-p <- p + theme_economist_white(gray_bg = FALSE) + scale_y_continuous(limits=c(0, 0.4), labels=percent) + scale_colour_inclusion()
+p <- p + theme_economist_white(gray_bg = FALSE) + scale_y_continuous(limits=c(0, 0.4), labels=percent) + scale_colour_lwi()
 
 ##Economy effect
 
@@ -248,10 +248,10 @@ levels(fig1df_melted$variable) <- c("Actual performance", "Equivalent minimum be
 levels(fig1df_errorbar_melted$variable) <- c("Actual performance", "Equivalent minimum benchmark")
 
 ggfig1 <- ggplot(fig1df_melted, aes(x=measure, y=value, fill=variable)) + geom_bar(stat="identity", position = "dodge") + 
-  geom_linerange(aes(x=measure, ymin=value, ymax = value + fig1df_errorbar_melted$value), position=position_dodge(0.9), colour="#7B60AA", size=12) + geom_text(aes(y=value, label=percent(value,1)),position=position_dodge(0.9), hjust=0) +
+  geom_linerange(aes(x=measure, ymin=value, ymax = value + fig1df_errorbar_melted$value), position=position_dodge(0.9), colour="#ee7e3b", alpha=0.8, size=12) + geom_text(aes(y=value, label=percent(value)),position=position_dodge(0.9), hjust=0) +
   coord_flip() + theme_economist_white(gray_bg=FALSE, horizontal=FALSE) +
   scale_y_continuous(labels=percent, limits=c(0, 0.35)) + 
-  scale_fill_inclusion() + labs(x="", y="")
+  scale_fill_lwi() + labs(x="", y="")
 #Payment Group Performance
 gb_pg_slice <- read.csv(paste0(cohort,"gb_pg_slice.csv"), colClasses="character")
 gp_names <- read.csv(paste0(cohort,"payment_groups.csv"))
