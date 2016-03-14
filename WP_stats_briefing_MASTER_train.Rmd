@@ -459,7 +459,7 @@ Figure 2: Inclusion Job Outcome Measures for all participants
 library(zoo)
 ggfig2 <- autoplot.zoo(joperc, facets=NULL) + 
   theme_economist_white(gray_bg=FALSE, base_size=12) +
-  scale_colour_inclusion() + scale_y_continuous(labels=percent, limits=c(0,0.4)) 
+  scale_colour_lwi() + scale_y_continuous(labels=percent, limits=c(0,0.4)) 
 ggfig2 <- ggfig2 + geom_line(size=2)
 ggsave("Figure_2.png", ggfig2, width=8, height=4, units="in")
 print(ggfig2)
@@ -522,7 +522,7 @@ completer_plot <- autoplot.zoo(head(zoo_completers[,11:12],-27), facets=NULL) +
   theme_economist_white(base_size = 12, gray_bg = FALSE) + 
   labs(x="", y="") + 
   scale_y_continuous(labels=percent, limits=c(0,1)) + 
-  scale_colour_discrete(labels=c("Completed with job", "Returned to Jobcentre Plus")) + scale_colour_inclusion() + 
+  scale_colour_discrete(labels=c("Completed with job", "Returned to Jobcentre Plus")) + scale_colour_lwi() + 
   geom_line(size=2) +
   scale_x_yearmon(format = "%b %Y")
 ```
