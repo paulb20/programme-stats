@@ -1,0 +1,1090 @@
+---
+title: "Work Programme Statistics"
+author: "Paul Bivand"
+date: 'Thursday, December 17 2015 '
+output: word_document
+---
+# Work Programme statistics: 
+
+##Inclusion analysis
+
+##`r format(Sys.Date(), "%d %B %Y")`
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(cache=FALSE)
+```
+
+
+#Summary 
+
+```{r file_locations, echo=FALSE, message=FALSE}
+
+library(XLConnect)
+non_cohort <- "F:/R&C/Data/Work Programme NEW/Briefing Dec 2015/work-programme-time-series-to-sept-2015/"
+cohort <- "F:/R&C/Data/Work Programme NEW/Briefing Dec 2015/work-programme-cohort-data-to-sept-2015-csv/"
+data_date <- "September 2015"
+MPL_year <- "Oct 2014-Sep 2015"
+current_quarter <- "July to September 2015"
+dwp_exp_all <- c(0.101, 0.238, 0.254)
+econ_effect <- 0.12639
+```
+
+DWP has published statistics from the beginning of the Work Programme in June 2011 to the end of `r data_date`. In this data release, we are able to report on the **two-year job outcome performance** i.e whether or not an individual has secured a job outcome during the entire length of time on the programme.
+
+The headline results are:
+
+```{r load_non_cohort, echo=FALSE}
+library(ggplot2)
+library(reshape2)
+library(scales)
+library(ggthemes)
+library(zoo)
+library(grid)
+source("F:/R&C/Data/123FILES/R scripts/inclusion_pal.R")
+gb_non <- zoo::na.trim(read.csv(paste0(non_cohort, "gb_slice.csv")))
+gb_non <- gb_non[!duplicated(gb_non),]
+gb_non_pg <- read.csv(paste0(non_cohort, "gb_payment_group_slice.csv"))
+gb_non_pg <- gb_non_pg[!duplicated(gb_non_pg),]
+payment_groups_list <- read.csv(paste0(non_cohort, "payment_groups.csv"))
+gb_non_age <- read.csv(paste0(non_cohort, "gb_age_slice.csv"))
+gb_non_age <- gb_non_age[!duplicated(gb_non_age),]
+gb_non_disabled <- read.csv(paste0(non_cohort, "gb_disflag_slice.csv"))
+gb_non_disabled <- gb_non_disabled[!duplicated(gb_non_disabled),]
+gb_non_ethnic <- read.csv(paste0(non_cohort, "gb_ethnicity_slice.csv"))
+gb_non_ethnic <- gb_non_ethnic[!duplicated(gb_non_ethnic),]
+gb_non_gender <- read.csv(paste0(non_cohort, "gb_gender_slice.csv"))
+gb_non_gender <- gb_non_gender[!duplicated(gb_non_gender),]
+gb_non_loneparent <- read.csv(paste0(non_cohort, "gb_lpflag_slice.csv"))
+gb_non_loneparent <- gb_non_loneparent[!duplicated(gb_non_loneparent),]
+splat_age <- split(gb_non_age, gb_non_age[,2])
+splat_disability <- split(gb_non_disabled, gb_non_disabled[,2])
+splat_ethnic <- split(gb_non_ethnic, gb_non_ethnic[,2])
+splat_gender <- split(gb_non_gender, gb_non_gender[,2])
+splat_loneparent <- split(gb_non_loneparent, gb_non_loneparent[,2])
+
+gb_non_pg <- merge(gb_non_pg, payment_groups_list)
+gb_non_pg_simple <- gb_non_pg[,c("MONTH", "name", "PAYMENT_GROUP","NO_OF_REFERRALS")]
+gb_non_pg_simple <- gb_non_pg_simple[gb_non_pg_simple$PAYMENT_GROUP %in% c(10,20,30,40,50,60,70,80,90),]
+gb_non_pg_simple <- dcast(gb_non_pg_simple, MONTH ~ name, value.var= "NO_OF_REFERRALS")
+zoo_non_pg <- zooreg(gb_non_pg_simple[2:10], start=c(2011,6), frequency = 12)
+fortified <- fortify.zoo(zoo_non_pg, melt=TRUE)
+c <- ggplot(fortified, aes(x=Index, y=Value, fill= Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg = FALSE) + scale_fill_inclusion() + guides(fill=guide_legend(nrow=3)) + scale_y_continuous(labels=comma) + labs(y="Monthly referrals", x= "Month of referral")
+latest_referrals <- rollsum(tail(zoo_non_pg,12),3)
+latest_referrals <- as.data.frame(tail(latest_referrals,1))
+
+
+
+wpcharacteristics <- c("Men", 
+                       "Women",
+                       "People with a disability",
+                       "Lone parents",
+                       "Ethnicity: White",
+                       "Ethnicity: BAME",
+                       "Age: 18-24",
+                       "Age: 25-49",
+                       "Age: 50+",
+                       "Total")
+#MPL-ish version
+wpchar_performance <- c(sum(tail(splat_gender[[2]][,8],12))/sum(tail(splat_gender[[2]][,4],12)),
+                        sum(tail(splat_gender[[1]][,8],12))/sum(tail(splat_gender[[1]][,4],12)),
+                        sum(tail(splat_disability[[2]][,8],12))/sum(tail(splat_disability[[2]][,4],12)),
+                        sum(tail(splat_loneparent[[2]][,8],12))/sum(tail(splat_loneparent[[2]][,4],12)),
+                        sum(tail(splat_ethnic[[1]][,8],12))/sum(tail(splat_ethnic[[1]][,4],12)),
+                        sum(sum(tail(splat_ethnic[[2]][,8],12)),sum(tail(splat_ethnic[[3]][,8],12)), sum(tail(splat_ethnic[[4]][,8],12)), sum(tail(splat_ethnic[[5]][,8],12)))/sum(sum(tail(splat_ethnic[[2]][,4],12)),sum(tail(splat_ethnic[[3]][,4],12)), sum(tail(splat_ethnic[[4]][,4],12)), sum(tail(splat_ethnic[[5]][,4],12))),
+                        sum(tail(splat_age[[1]][,8],12))/sum(tail(splat_age[[1]][,4],12)),
+                        sum(sum(tail(splat_age[[2]][,8],12)),sum(tail(splat_age[[3]][,8],12)), sum(tail(splat_age[[4]][,8],12)), sum(tail(splat_age[[5]][,8],12)))/sum(sum(tail(splat_age[[2]][,4],12)),sum(tail(splat_age[[3]][,4],12)), sum(tail(splat_age[[4]][,4],12)), sum(tail(splat_age[[5]][,4],12))),
+                        sum(sum(tail(splat_age[[6]][,8],12)),sum(tail(splat_age[[7]][,8],12)))/sum(sum(tail(splat_age[[6]][,4],12)),sum(tail(splat_age[[7]][,4],12))),
+                        sum(tail(gb_non[,5],12))/sum(tail(gb_non[,3],12)))
+
+#Total version
+wpchar_performance_total <- c(
+  tail(splat_gender[[1]][,16],1)/tail(splat_gender[[1]][,12],1),
+  tail(splat_gender[[2]][,16],1)/tail(splat_gender[[2]][,12],1),
+  tail(splat_disability[[2]][,16],1)/tail(splat_disability[[2]][,12],1),
+  tail(splat_loneparent[[2]][,16],1)/tail(splat_loneparent[[2]][,12],1),
+  tail(splat_ethnic[[1]][,16],1)/tail(splat_ethnic[[1]][,12],1),
+  sum(tail(splat_ethnic[[2]][,16],1), tail(splat_ethnic[[3]][,16],1), tail(splat_ethnic[[4]][,16],1),tail(splat_ethnic[[5]][,16],1))/sum(tail(splat_ethnic[[2]][,12],1), tail(splat_ethnic[[3]][,12],1), tail(splat_ethnic[[4]][,12],1),tail(splat_ethnic[[5]][,12],1)),
+  tail(splat_age[[1]][,16],1)/tail(splat_age[[1]][,12],1),
+  sum(tail(splat_age[[2]][,16],1), tail(splat_age[[3]][,16],1), tail(splat_age[[4]][,16],1),tail(splat_age[[5]][,16],1))/sum(tail(splat_age[[2]][,12],1), tail(splat_age[[3]][,12],1), tail(splat_age[[4]][,12],1),tail(splat_age[[5]][,12],1)),
+  sum(tail(splat_age[[6]][,16],1), tail(splat_age[[7]][,16],1))/sum(tail(splat_age[[6]][,12],1), tail(splat_age[[7]][,12],1)),
+ tail(gb_non[,9],1)/tail(gb_non[,7],1) )
+wp_performance_order <- 1:10
+wp_performance_df <- data.frame(wpcharacteristics, wpchar_performance, wp_performance_order)
+wp_performance_total_df <- data.frame(wpcharacteristics, wpchar_performance_total, wp_performance_order)
+wp_performance_total_df$wp_performancediff <- wp_performance_total_df$wpchar_performance_total-wp_performance_total_df$wpchar_performance_total[10]
+## Finance
+finance_data <- gb_non_pg[,c("PAYMENT_GROUP", "name", "MONTH", "NO_OF_ATTACHMENTS", "NO_OF_JOB_OUTCOMES", "NO_OF_SUSTAINMENTS_PAID")]
+finance_data <- finance_data[finance_data$PAYMENT_GROUP %in% c(10,20,30,40,50,60,70,80,90),]
+attach1 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach2 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach3 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach4 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach5 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach6 <- c(rep(600,10), rep(450,12), rep(300,12), rep(0,36))
+attach7 <- c(rep(600,10), rep(450,12), rep(300,12), rep(0,36))
+attach8 <- c(rep(400,10), rep(300,12), rep(200,12), rep(0,36))
+attach9 <- c(rep(400,1), rep(300,12), rep(200,12), rep(0,36))
+attach1 <- head(attach1, nrow(gb_non))
+attach2 <- head(attach2, nrow(gb_non))
+attach3 <- head(attach3, nrow(gb_non))
+attach4 <- head(attach4, nrow(gb_non))
+attach5 <- head(attach5, nrow(gb_non))
+attach6 <- head(attach6, nrow(gb_non))
+attach7 <- head(attach7, nrow(gb_non))
+attach8 <- head(attach8, nrow(gb_non))
+attach9 <- head(attach9, nrow(gb_non)-8)
+attach_fees <- c(attach1, attach2, attach3, attach4, attach5, attach6, attach7, attach8, attach9)
+
+outcome1 <- c(rep(1100,34), rep(1100*.9,12), rep(1100*.8,12), rep(1100*.7,12))
+outcome2 <- c(rep(1100,34), rep(1100*.9,12), rep(1100*.8,12), rep(1100*.7,12))
+outcome3 <- c(rep(1200,70))
+outcome4 <- c(rep(1200,70))
+outcome5 <- c(rep(1000,70))
+outcome6 <- c(rep(1100,34), rep(1100*.9,12), rep(1100*.8,12), rep(1100*.7,12))
+outcome7 <- c(rep(3500,70))
+outcome8 <- c(rep(1000,70))
+outcome9 <- c(rep(1200,70))
+outcome1 <- head(outcome1, nrow(gb_non))
+outcome2 <- head(outcome2, nrow(gb_non))
+outcome3 <- head(outcome3, nrow(gb_non))
+outcome4 <- head(outcome4, nrow(gb_non))
+outcome5 <- head(outcome5, nrow(gb_non))
+outcome6 <- head(outcome6, nrow(gb_non))
+outcome7 <- head(outcome7, nrow(gb_non))
+outcome8 <- head(outcome8, nrow(gb_non))
+outcome9 <- head(outcome9, nrow(gb_non)-8)
+outcome_fees <- c(outcome1, outcome2, outcome3, outcome4, outcome5, outcome6, outcome7, outcome8, outcome9)
+
+sustain1 <- rep(170,70)
+sustain2 <- rep(215,70)
+sustain3 <- rep(250,70)
+sustain4 <- rep(250,70)
+sustain5 <- rep(115,70)
+sustain6 <- rep(235,70)
+sustain7 <- rep(370,70)
+sustain8 <- rep(145,70)
+sustain9 <- rep(200,70)
+sustain1 <- head(sustain1, nrow(gb_non))
+sustain2 <- head(sustain2, nrow(gb_non))
+sustain3 <- head(sustain3, nrow(gb_non))
+sustain4 <- head(sustain4, nrow(gb_non))
+sustain5 <- head(sustain5, nrow(gb_non))
+sustain6 <- head(sustain6, nrow(gb_non))
+sustain7 <- head(sustain7, nrow(gb_non))
+sustain8 <- head(sustain8, nrow(gb_non))
+sustain9 <- head(sustain9, nrow(gb_non)-8)
+sustain_fees <- c(sustain1, sustain2, sustain3, sustain4, sustain5, sustain6, sustain7, sustain8, sustain9)
+finance_data$attach_fees <- attach_fees
+finance_data$outcome_fees <- outcome_fees
+finance_data$sustain_fees <- sustain_fees
+finance_data$attach_payment <- finance_data$NO_OF_ATTACHMENTS*finance_data$attach_fees
+finance_data$outcome_payment <- finance_data$NO_OF_JOB_OUTCOMES*finance_data$outcome_fees
+finance_data$sustain_payment <- finance_data$NO_OF_SUSTAINMENTS_PAID*finance_data$sustain_fees
+finance_data_out <- finance_data[,c("MONTH", "name", "attach_payment", "outcome_payment", "sustain_payment")]
+finance_data_out <- split(finance_data_out, finance_data_out$name)
+# attach_payments <- finance_data_out[[1]][,3] + finance_data_out[[2]][,3] + finance_data_out[[3]][,3] + finance_data_out[[4]][,3] + finance_data_out[[5]][,3] + finance_data_out[[6]][,3] + finance_data_out[[9]][,3] + finance_data_out[[10]][,3] + finance_data_out[[11]][,3]
+library(zoo)
+finance_data_zoo <- merge.zoo(
+  zooreg(finance_data_out[[1]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[2]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[3]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[4]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[5]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[6]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[9]][,3:5], start=c(2011,6), frequency = 12),
+zooreg(finance_data_out[[10]][,3:5], start=c(2011,6), frequency = 12),
+na.fill(zooreg(finance_data_out[[11]][,3:5], start=c(2012,2), frequency = 12),0))
+finance_data_zoo <- na.fill(finance_data_zoo,0)
+attach_payments <- finance_data_zoo[,1] + finance_data_zoo[,4] + finance_data_zoo[,7] + finance_data_zoo[,10] + finance_data_zoo[,13] + finance_data_zoo[,16] + finance_data_zoo[,19] + finance_data_zoo[,22] + finance_data_zoo[,25]
+outcome_payments <- finance_data_zoo[,2] + finance_data_zoo[,5] + finance_data_zoo[,8] + finance_data_zoo[,11] + finance_data_zoo[,14] + finance_data_zoo[,17] + finance_data_zoo[,20] + finance_data_zoo[,23] + finance_data_zoo[,26]
+sustain_payments <- finance_data_zoo[,3] + finance_data_zoo[,6] + finance_data_zoo[,9] + finance_data_zoo[,12] + finance_data_zoo[,15] + finance_data_zoo[,18] + finance_data_zoo[,21] + finance_data_zoo[,24] + finance_data_zoo[,27]
+payments <- merge.zoo(attach_payments, outcome_payments, sustain_payments)
+names(payments) <- c("Attachment fees", "Job Outcome payments", "Sustainment payments")
+money <- fortify.zoo(model = payments, melt = TRUE)
+
+ggmoney <- ggplot(money, aes(x=Index, y=Value, fill=Series)) + geom_area() + theme_economist_white(base_size=12, gray_bg=FALSE) + scale_fill_inclusion() + labs(x="", y="") + scale_y_continuous(labels=dollar_format(prefix = "\u00A3")) 
+```
+
+```{r read_cohort_gb, echo=FALSE}
+library(zoo)
+gb_slice <- read.csv(paste0(cohort,"gb_slice.csv"), colClasses="character")
+needed_cols <- c(1, grep("JOCOUNT", names(gb_slice)), grep("COCOUNT", names(gb_slice)), ncol(gb_slice))
+gb_slice2 <- gb_slice[,needed_cols]
+gb_slice3 <- data.frame(gb_slice2$MONTH, lapply(gb_slice2[,3:ncol(gb_slice2)-1] , FUN= as.numeric),gb_slice2$GB_CODE)
+jocount <- lapply(gb_slice3[,grep("JOCOUNT", names(gb_slice3))], zoo::na.trim)
+cocount <- lapply(gb_slice3[,grep("COCOUNT", names(gb_slice3))], zoo::na.trim)
+jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+jocount2  <- do.call(cbind, jocount)
+cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+cocount2  <- do.call(cbind, cocount)
+joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+jocounttsdata <- jocount2[c(13,25,31),]
+cocounttsdata <- cocount2[c(13,25,31),]
+joperc <- as.zoo(ts(t(jocounttsdata/cocounttsdata),start=c(2011,6), frequency=12))
+names(joperc) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+oldgbsummary<- c(0.119, 0.253, 0.280)
+gbsummary <- joprofile[c(13,25,31)]
+write.csv(joperc, "overall_cohort_performance_ts.csv")
+
+library(ggplot2)
+library(ggthemes)
+library(scales)
+library(reshape2)
+p <- autoplot.zoo(joperc, facets=NULL)
+p <- p + theme_economist_white(gray_bg = FALSE) + scale_y_continuous(limits=c(0, 0.4), labels=percent) + scale_colour_inclusion()
+
+##Economy effect
+
+
+dwp_exp_exc_econ <- dwp_exp_all*(1-econ_effect)
+gbsummarymax <- rep(0,3)
+fig1df <- data.frame(gbsummary, dwp_exp_exc_econ)
+fig1df$measure <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+fig1df_errorbar <- data.frame(gbsummarymax, (dwp_exp_all-dwp_exp_exc_econ))
+fig1df_errorbar$measure <- fig1df$measure
+fig1df_melted <- melt(fig1df)
+fig1df_errorbar_melted <- melt(fig1df_errorbar)
+levels(fig1df_melted$variable) <- c("Actual performance", "Equivalent minimum benchmark")
+levels(fig1df_errorbar_melted$variable) <- c("Actual performance", "Equivalent minimum benchmark")
+
+ggfig1 <- ggplot(fig1df_melted, aes(x=measure, y=value, fill=variable)) + geom_bar(stat="identity", position = "dodge") + 
+  geom_linerange(aes(x=measure, ymin=value, ymax = value + fig1df_errorbar_melted$value), position=position_dodge(0.9), colour="#7B60AA", size=12) + geom_text(aes(y=value, label=percent(value,1)),position=position_dodge(0.9), hjust=0) +
+  coord_flip() + theme_economist_white(gray_bg=FALSE, horizontal=FALSE) +
+  scale_y_continuous(labels=percent, limits=c(0, 0.35)) + 
+  scale_fill_inclusion() + labs(x="", y="")
+#Payment Group Performance
+gb_pg_slice <- read.csv(paste0(cohort,"gb_pg_slice.csv"), colClasses="character")
+gp_names <- read.csv(paste0(cohort,"payment_groups.csv"))
+needed_cols <- c(1, 
+                 grep("JOCOUNT", names(gb_pg_slice)), 
+                 grep("COCOUNT", names(gb_pg_slice)), 
+                 ncol(gb_pg_slice)-1,
+                 ncol(gb_pg_slice))
+gb_pg_slice2 <- gb_pg_slice[,needed_cols]
+gb_pg_slice2$PAYMENT_GROUP <- factor(gb_pg_slice2$PAYMENT_GROUP)
+gb_pg_slice2 <- split(gb_pg_slice2, gb_pg_slice2$PAYMENT_GROUP)
+gb_pg_slice3 <- vector("list", length(gb_pg_slice2))
+
+numericise <- function(x,y){data.frame(x[[y]][,"MONTH"],
+                                       lapply(x[[y]][,3:ncol(x[[y]])-2] , FUN= as.numeric),
+                                       x[[y]][,"GB_CODE"],
+                                       x[[y]]["PAYMENT_GROUP"])}
+
+gb_pg_slice3[[1]] <- numericise(gb_pg_slice2,1)
+gb_pg_slice3[[2]] <- numericise(gb_pg_slice2,2)
+gb_pg_slice3[[3]] <- numericise(gb_pg_slice2,3)
+gb_pg_slice3[[4]] <- numericise(gb_pg_slice2,4)
+gb_pg_slice3[[5]] <- numericise(gb_pg_slice2,5)
+gb_pg_slice3[[6]] <- numericise(gb_pg_slice2,6)
+gb_pg_slice3[[7]] <- numericise(gb_pg_slice2,7)
+gb_pg_slice3[[8]] <- numericise(gb_pg_slice2,8)
+gb_pg_slice3[[9]] <- numericise(gb_pg_slice2,9)
+gb_pg_slice3[[10]] <- numericise(gb_pg_slice2,10)
+gb_pg_slice3[[11]] <- numericise(gb_pg_slice2,11)
+
+fnjocount <- function(x,y) {
+  jocount <- lapply(x[[y]][,grep("JOCOUNT", names(x[[y]]))], zoo::na.trim)
+  cocount <- lapply(x[[y]][,grep("COCOUNT", names(x[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+  jocounttsdata <- jocount2[c(13,25,31),]
+  cocounttsdata <- cocount2[c(13,25,31),]
+  joperc <- as.zoo(ts(
+    t(jocounttsdata/cocounttsdata),
+    start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+gb_pg_slice_out <- vector("list", length(gb_pg_slice2))
+gb_pg_slice_out[[1]] <- fnjocount(gb_pg_slice3,1)
+gb_pg_slice_out[[2]] <- fnjocount(gb_pg_slice3,2)
+gb_pg_slice_out[[3]] <- fnjocount(gb_pg_slice3,3)
+gb_pg_slice_out[[4]] <- fnjocount(gb_pg_slice3,4)
+gb_pg_slice_out[[5]] <- fnjocount(gb_pg_slice3,5)
+gb_pg_slice_out[[6]] <- fnjocount(gb_pg_slice3,6)
+gb_pg_slice_out[[7]] <- fnjocount(gb_pg_slice3,7)
+gb_pg_slice_out[[8]] <- fnjocount(gb_pg_slice3,8)
+gb_pg_slice_out[[9]] <- fnjocount(gb_pg_slice3,9)
+gb_pg_slice_out[[10]] <- fnjocount(gb_pg_slice3,10)
+gb_pg_slice_out[[11]] <- fnjocount(gb_pg_slice3,11)
+
+latest_2_perf <- round(mean(tail(zoo::na.trim(joperc[,2]),2))*100,0)
+
+names(gb_pg_slice_out) <- as.character(gp_names$name)
+gp_performance <- as.data.frame(do.call(rbind, gb_pg_slice_out))
+names(gp_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+gp_performance_2year <- gp_performance[,2]
+#rownames(gp_performance_2year) <- rownames(gp_performance)
+gp_performance_1year <- gp_performance[,1]
+#rownames(gp_performance_1year) <- rownames(gp_performance)
+
+write.csv(gp_performance, "payment_group_performance.csv")
+```
+The headline results are:
+
+* The two-year Job Outcome performance is **`r round(gbsummary[2]*100,1)`%, x percentage point above DWP's expectations**. This figure is for the whole Work Programme from June 2011 to `r data_date`.
+* Two-year performance over the whole programme has **increased slightly**, from 24.9% in the September release to `r round(gbsummary[2]*100,1)`% now.
+* For those completing the programme in the latest two months, two-year performance has  risen/fallen from around 27% to around `r latest_2_perf`%.
+*	`r round(tail(gb_non[,7],1)/1000000,2)` million people have been referred to the Work programme since June 2011, equivalent to nearly y% of all benefit claimants.
+* `r round(tail(gb_non[,9],1)/1000,1)` thousand people have had a 'sustained' job outcome through the Work Programme.
+* ERSA - the Providers Trade Association, report that over 731,000 participants have started work - and may eventually get a 'Job Outcome'.
+* `r round(gp_performance[6,2]*100,1)`% of ESA new claimants get a job outcome within two years, below DWP's expectation of 12.7%. The equivalent figure for ex-IB ESA participants is `r round(gp_performance[9,2]*100,1)`%.
+* People with a disability and those aged 50 and over are the least successful in getting a job through the Work Programme.
+
+
+##Work Programme overall performance
+
+In general, performance is *below* our benchmark indicators and in line with, or  above, our economy adjusted indicators. 
+
+On the two-year measure performance has increased by `r round(gbsummary[2]*100,1)- round(oldgbsummary[2]*100,1)` percentage points to `r round(gbsummary[2]*100,1)`%. This is in line with what we would expect from previous performance on the one-year measure. On our one-year measure there has been a slight increase of `r round(gbsummary[1]*100,1)- round(oldgbsummary[1]*100,1)` percentage points with performance at `r round(gbsummary[1]*100,1)`. Looking at the overall job outcome measure, covering the first 19 months of programme referrals, performance is at `r round(gbsummary[3]*100,1)`%. This is `r round(gbsummary[3]*100,1)- round(oldgbsummary[3]*100,1)` percentage points higher than last quarter's figure.
+
+Figure 1: Inclusion Job Outcome Measures for all participants equivalent minimum benchmark compared to actual (Jun 2011-Mar 2014 referrals)
+
+```{r figure_1, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+ggsave("Figure_1.png", ggfig1, width=8, height=4, units="in")
+print(ggfig1)
+```
+
+##Conclusion
+The two-year measure is a robust indicator of performance. This shows that more than 1 in 4 of participants (`r round(gbsummary[2]*100,1)`%) of participants secure a sustained job outcome within two years. 
+
+###Check this
+
+However, this remains below what was stated as initial expectations for the programme. When we adjust for the fact that economic performance since 2011 has been below that expected at the time, performance looks better and is above our economy-adjusted expectation.
+
+Performance for ESA (and disabled people in general) remains low. DWP have separated out the New ESA Claimants group into two parts - one for those who were originally expected to go on the programme, and a second one for the expanded group with a 12-month expectation before they would be fit for work. 
+
+The original group shows a strong and welcome increase in performance. The second group, with a longer period before being fit for work, continue to have low job outcomes. 
+
+Increasing performance for all groups remains a priority as the economy improves. All must share in any improvement in job outcomes and job sustainment.
+
+#Introduction
+
+## What statistics have been released?
+
+DWP has published statistics from the beginning of the Work Programme in June 2011 to the end of `r data_date`. The data covers the first four years of the programme.
+
+The statistics give:
+
+* The number of customer referrals to Work Programme providers, and the number that started on the programme.
+
+* The number of job outcome payments that have been made to providers. These are paid after a customer has been in work for either three or six months.
+
+* The number of sustainment payments to providers, and the number of individuals for whom at least one sustainment payment has been made. Sustainment payments are made for each four-week period a customer spends in work following a job outcome.
+
+* The number of leavers from the Work Programme who are not in employment, but may have had a spell of employment during their two years on the programme.
+
+It is possible to analyse these statistics by each of the nine participant groups, localities, and participant characteristics. 
+
+##How is performance measured?
+
+DWP has two measures of performance:
+
+1) The contractual measure is the Minimum Performance Level (MPL) for three key participant groups. The MPL is now measured on a revised basis based on either achieving or being on profile to achieve DWP's estimates of how many job outcomes should be achieved for each monthly group of referrals.
+
+2) The DWP business plan measure is a monthly indicator and is a measure of how each monthly cohort of referrals is succeeding in getting a job within 12 months.
+
+Inclusion uses a third measure:
+
+3) The Job Outcome Measure. This measures performance for every participant who could get a job outcome after 12 months and 24 months on the programme, and the overall measure for each cohort. 
+
+Our Job Outcome Measure is the average proportion of customers achieving a job outcome within a year, two years, or their maximum time on the programme. As the Work Programme is now into its' fifth year of operation, the overall measure represents the achievements with the first 19 months of referrals, and the two-year measure covers the first 25 months of referrals, to June 2013. 
+
+#The Work Programme as a whole
+
+##How many job outcomes have there been?
+
+From the beginning of the programme to the end of `r data_date`, `r round(tail(gb_non[,9],1)/1000,1)` thousand job outcome payments have been made to providers. `r round(sum(tail(gb_non[,5],12))/1000,0)` of these were achieved in the most recent 12 months of the programme.
+
+##Has DWP's Minimum Performance Level (MPL) been met?
+
+DWP has now accepted that it's original Minimum Performance Level was flawed and has revised it's contractual measures. 
+
+Our measures are similar to the DWP's revised measures, but we only include actual achievements, rather than including being 'on-profile' to meet the revised Minimum Performance Levels. We also represent our measures as whole-programme measures, with some time series detail.
+
+##Has Inclusion's Job Outcome Measure been met?
+
+We now have data for:
+
+* `r length(zoo::na.trim(joperc[,1]))` months of starts who have been on the programme for one year (the one-year Job Outcome Measure)
+
+* `r length(zoo::na.trim(joperc[,2]))` months of starts who have completed their two years on the programme (the two-year Job Outcome Measure)
+
+* `r length(zoo::na.trim(joperc[,3]))` months of starts who have completed overall and completed the job outcome period at the end (the overall Job Outcome Measure).
+
+DWP's performance expectations are:
+
+* 11.4% on the one-year Job Outcome Measure
+
+* 25.8% on the two-year Job Outcome Measure 
+
+* 28.5% on the overall Job outcome measures.
+
+These are the benchmark indicators that we use to assess overall performance.
+
+We also make an adjustment for the economy because economic growth worsened after the Work Programme was commissioned and DWP's minimum expectations were set. However, economic growth has now picked up so we have re-estimated the economy effect (since the start of the programme) as a 13.0% reduction on the benchmark indicators. This has fallen from a 14.3% reduction we were applying before.
+
+Therefore our economy adjusted benchmarks are:
+
+* `r round(dwp_exp_exc_econ[1] *100,1)`% on our one-year job outcome measure 
+
+* `r round(dwp_exp_exc_econ[2] *100,1)`% on our two-year job outcome measure 
+
+* `r round(dwp_exp_exc_econ[3] *100,1)`% on our overall job outcome measure.
+
+Figure 1 shows performance against these benchmarks.
+
+Figure 1: Inclusion Job Outcome Measures for all participants equivalent minimum benchmark compared to actual (Jun 2011-Mar 2014 referrals) 
+```{r figure_1_2, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+
+print(ggfig1)
+```
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. Average weighted by monthly referral numbers.
+
+##Is performance improving?
+
+On our one-year measure there has been a slight increase in performance in the latest data. Performance had been improving month on month up to March 2013 then flattened out, but the latest data shows this measure improving again.
+
+On the two-year measure performance has significantly increased by x percentage points since the last data release. 
+
+The overall job outcome measure now has `r length(zoo::na.trim(joperc[,3]))` months worth of data, and is slightly below our expectations of where minimum performance should be.
+
+We can judge performance improvements using our Job Outcome Measure. Figure 2, below shows job outcome performance over time.
+
+Figure 2: Inclusion Job Outcome Measures for all participants
+```{r figure_2, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+library(zoo)
+ggfig2 <- autoplot.zoo(joperc, facets=NULL) + 
+  theme_economist_white(gray_bg=FALSE, base_size=12) +
+  scale_colour_inclusion() + scale_y_continuous(labels=percent, limits=c(0,0.4)) 
+ggfig2 <- ggfig2 + geom_line(size=2)
+ggsave("Figure_2.png", ggfig2, width=8, height=4, units="in")
+print(ggfig2)
+```
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+ 
+##Are jobs being sustained?
+
+Yes, job sustainment remains strong.
+
+One of the objectives of the Work Programme was to support participants to sustain employment for longer beyond their three or six month job outcome. 
+
+Up to the end of `r data_date`, DWP had made `r format(tail(gb_non[,10],1), big.mark=",")` sustainment payments for participants sustaining work beyond a job outcome. This equates to `r round(tail(gb_non[,10],1)/tail(gb_non[,9],1),1)` payments (or `r round((tail(gb_non[,10],1)/tail(gb_non[,9],1))*4,0)` weeks in work) following every job outcome that has been achieved so far. This is higher than the last results.
+
+Figure 3 shows average weeks in work by payment group. This is composed of the weeks in work paid for sustainment together with the weeks in work leading up to the Job Outcome (26 weeks in work for the first two JSA groups, 13 weeks for the remaining groups). It shows that, on average, people who achieve a Job Outcome are in paid work for over a year.
+
+Figure 3: Average weeks in work per Job Outcome (June 2011 to `r data_date`)
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. 
+
+Table 1 shows how Work Programme performance has varied among the 15 Prime contractors on all three of our benchmark indicators. We  also show the rankings by the one-year job outcome measure and overall measure.
+
+The data shows a performance gap of 7.0 percentage points for the two-year job outcome measure, between the highest and lowest performing primes, roughly equal to what we saw last quarter.
+
+One the one-year performance measures, the gap is much smaller at 3.9 percentage points (a reduction of 0.4 on previous figures) between the highest and lowest performing Primes. 
+
+On the overall measure, the gap is much larger at 9.2 percentage points (although this captures only four months of data).
+
+Table 1: Prime contractor performance on Inclusion's Job Outcome Measures (Jun 2011-Sep 2014 referrals)
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. 
+
+##Work Programme Leavers
+
+```{r read_completers, echo=FALSE}
+library(zoo)
+library(ggplot2)
+library(scales)
+library(reshape2)
+library(ggthemes)
+
+completers <- read.csv(paste0(non_cohort, "gb_comp_slice.csv"), colClasses = "character")
+complete_names <- read.csv(paste0(non_cohort, "completed.csv"))
+completers <- completers[!duplicated(completers),]
+completers <- completers[,1:4]
+completers <- merge(completers, complete_names)
+completers$NO_OF_REFERRALS <- as.numeric(completers$NO_OF_REFERRALS)
+cast_completers <- dcast(completers, MONTH ~ name, value.var="NO_OF_REFERRALS")
+zoo_completers <- zooreg(cast_completers[,2:8], start=c(2011,6), frequency=12)
+zoo_completers$jobs <- rowSums(zoo_completers[,c(1,5)])
+zoo_completers$JCP_return <- rowSums(zoo_completers[,c(2,3)])
+zoo_completers$completers <- rowSums(zoo_completers[,1:6])
+zoo_completers$jobsperc <- zoo_completers$jobs/zoo_completers$completers
+zoo_completers$JCPperc <- zoo_completers$JCP_return/zoo_completers$completers
+names(zoo_completers) <- c(names(zoo_completers[,1:10]),"Completed with job", "Returned to Jobcentre Plus")
+fortify_completers <- fortify.zoo(head(zoo_completers[,11:12],-22), melt=TRUE)
+levels(fortify_completers$Series) <- c("Completed with job", "Returned to Jobcentre Plus")
+completer_plot <- autoplot.zoo(head(zoo_completers[,11:12],-27), facets=NULL) + 
+  theme_economist_white(base_size = 12, gray_bg = FALSE) + 
+  labs(x="", y="") + 
+  scale_y_continuous(labels=percent, limits=c(0,1)) + 
+  scale_colour_discrete(labels=c("Completed with job", "Returned to Jobcentre Plus")) + scale_colour_inclusion() + 
+  geom_line(size=2) +
+  scale_x_yearmon(format = "%b %Y")
+```
+
+There has been a total of 676,000 Work Programme participants who have finished their two years on the programme. 
+
+Figure 4: Work Programme completers by status upon completing attachment period (Jun 2011-Sep 2013 referrals)
+```{r completers, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+ggsave("Figure_4.png", completer_plot, width=8, height=4, units="in")
+print(completer_plot)
+```
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+
+
+#The Work Programme for participants
+
+##How many people are taking part?
+
+Up to the end of `r data_date`, `r round(tail(gb_non[,7],1)/1000000,2)` million people had been referred to the Work Programme, of which `r round(tail(gb_non[,8],1)/1000000,2)` million (`r round((tail(gb_non[,8],1)/tail(gb_non[,7],1))*100,0)`%) started on the programme.
+
+Monthly referrals numbers have been steadily declining since the programme began. In the last three months, there were `r round(sum(tail(gb_non[,3],3))/3000,0)` thousand referrals a month across the country.
+
+Figure 5 shows that the referrals have been concentrated in the three main JSA participant groups, but New ESA claimants have come to be a larger proportion of referrals.
+
+Figure 5: Work Programme referrals and attachments by participant group (Jun 2011-Mar 2015)
+
+```{r referral_volumes, fig.width=9, fig.height=5, echo=FALSE, warning=FALSE}
+ggsave("Figure_5.png", c, width=8, height=4, units="in")
+print(c)
+```
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+
+In the last three months, new ESA claimants have been 18% of referrals, compared to 28% in the JSA 25+ group. JSA 18-24 referrals were very slightly higher than new ESA claimants.
+
+Figure 6 shows the percentages of referrals by Payment Group in the three months to `r data_date`.
+
+
+
+##Has it worked for all groups?
+Performance varies between the nine different participant groups on the Work Programme. DWP expected that job outcomes would vary between different participants, and set MPLs or illustrative benchmarks for each participant group. 
+
+Figure 7 shows performance for each group, on our two-year Job Outcome Measure, against DWP's minimum expectation. 
+
+Figure 7: Two-year job outcome measure ? equivalent minimum benchmark compared to actual, by participant group (Jun-Sep 2013 referrals) 
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. 
+
+Performance is currently above the economy-adjusted benchmark for six of the nine participant groups. In particular, there is a noticeable improvement for the main group of ESA claimants (new ESA claimants) when moving from the one-year to the two-year measure. This suggests that ESA participants may be taking longer than expected to achieve job outcomes.
+
+For the main group of adults claiming JSA (JSA 25 and over) and the main group of participants aged 18-24 claiming JSA, performance is slightly above our estimated economy-adjusted benchmarks.
+
+Compared to last quarter's figures, performance has increased for all but two of the nine groups: ESA ex-IB claimants and ESA volunteers. However, for the three main groups there has been a slight improvement, one percentage point in each instance.
+
+Figure 8 shows performance for each group on our one-year Job Outcome Measure against the equivalent of DWP?s minimum expectation. In addition, we show the economy effect (the lighter-shaded section).
+
+Figure 8: One-year job outcome measure: Actual performance compared to DWP minimum benchmark, by participant group (Jun 2011-Sep 2014 referrals)
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. Average weighted by monthly referral numbers.
+ 
+This shows that performance has been below both our estimate of DWP's MPL on the one-year Job Outcome Measure, and our lower benchmark that takes the economy into account, for six of the nine groups. There are two groups that are above our estimate of the MPL even without the economy adjustment: the JSA Early Entrant group (containing more disadvantaged JSA claimants) and the JSA Ex-Incapacity Benefit group.
+
+Since the last release of statistics, performance has remained the same for the three main groups on the programme: those claiming JSA (JSA 25 and over); the main group of ESA participants (New ESA claimants); and the main group of participants aged 18 to 24 claiming JSA.
+
+##Has it worked for the most disadvantaged?
+
+Our estimates are based on 'Job Outcomes' and referrals over the entire Work programme, as two-year performance cannot be computed from the DWP release. Overall performance on this basis (`r round(wp_performance_total_df[10,2]*100,1)`%), is slightly lower than on the two-year performance measure (`r round(gbsummary[2]*100,1)`%).
+
+Figure 8: Job outcomes as a proportion of referrals by participant characteristics (June 2011 - Mar 2015)
+```{r participant_characteristics_plot, fig.width=6, fig.height=4, echo=FALSE, message=FALSE, warning=FALSE}
+ggcharacteristics <- ggplot(wp_performance_total_df, aes(x=reorder(wpcharacteristics,rev(wp_performance_order)), y=wp_performancediff)) + 
+  geom_bar(stat="identity", fill="#1C1666") + 
+  coord_flip()  + 
+  theme_economist_white(base_size=12, gray_bg = FALSE, horizontal=FALSE)  + 
+  labs(x="", y="") + 
+  scale_y_continuous(labels=percent) 
+ggsave("Figure_8.png", ggcharacteristics, width=8, height=4, units="in")
+print(ggcharacteristics)
+
+```
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+
+Women (at `r round(wp_performance_total_df[2,2]*100,1)`%) have higher Job Outcome rates than men (at `r round(wp_performance_total_df[1,2]*100,1)`%).
+
+People with a disability (at `r round(wp_performance_total_df[3,2]*100,1)`%) have low Job Outcome rates. Many peoplem with a disability are in the JSA payment groups as well as in the ESA payment groups.
+
+By ethnicity, BAME participants have slightly higher Job Outcome rates than white participants.
+
+By age, young participants have the highest performance, and the over-50s have the lowest performance.
+
+##Has it worked everywhere?
+
+```{r read_cpa, echo=FALSE}
+library(zoo)
+gp_slice <- read.csv(paste0(cohort, "cpa_slice.csv"), colClasses="character")
+gp_names <- read.csv(paste0(cohort, "cpa.csv"), colClasses="character")
+needed_cols <- c(1, 
+                 grep("JOCOUNT", names(gp_slice)), 
+                 grep("COCOUNT", names(gp_slice)), 
+                 ncol(gp_slice))
+gb_pg_slice2 <- gp_slice[,needed_cols]
+gb_pg_slice2 <- merge(gb_pg_slice2, gp_names[,1:2])
+gb_pg_slice2$name <- factor(gb_pg_slice2$name)
+gb_pg_slice2 <- split(gb_pg_slice2, gb_pg_slice2$name)
+gb_pg_slice3 <- vector("list", length(gb_pg_slice2))
+
+numericise <- function(x,y){data.frame(x[[y]][,"MONTH"],
+                                       lapply(x[[y]][,3:ncol(x[[y]])-1] , FUN= as.numeric),
+                                       x[[y]]["name"])}
+
+gb_pg_slice3[[1]] <- numericise(gb_pg_slice2,1)
+gb_pg_slice3[[2]] <- numericise(gb_pg_slice2,2)
+gb_pg_slice3[[3]] <- numericise(gb_pg_slice2,3)
+gb_pg_slice3[[4]] <- numericise(gb_pg_slice2,4)
+gb_pg_slice3[[5]] <- numericise(gb_pg_slice2,5)
+gb_pg_slice3[[6]] <- numericise(gb_pg_slice2,6)
+gb_pg_slice3[[7]] <- numericise(gb_pg_slice2,7)
+gb_pg_slice3[[8]] <- numericise(gb_pg_slice2,8)
+gb_pg_slice3[[9]] <- numericise(gb_pg_slice2,9)
+gb_pg_slice3[[10]] <- numericise(gb_pg_slice2,10)
+gb_pg_slice3[[11]] <- numericise(gb_pg_slice2,11)
+gb_pg_slice3[[12]] <- numericise(gb_pg_slice2,12)
+gb_pg_slice3[[13]] <- numericise(gb_pg_slice2,13)
+gb_pg_slice3[[14]] <- numericise(gb_pg_slice2,14)
+gb_pg_slice3[[15]] <- numericise(gb_pg_slice2,15)
+gb_pg_slice3[[16]] <- numericise(gb_pg_slice2,16)
+gb_pg_slice3[[17]] <- numericise(gb_pg_slice2,17)
+gb_pg_slice3[[18]] <- numericise(gb_pg_slice2,18)
+
+
+fnjocount <- function(x,y) {
+  jocount <- lapply(x[[y]][,grep("JOCOUNT", names(x[[y]]))], zoo::na.trim)
+  cocount <- lapply(x[[y]][,grep("COCOUNT", names(x[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+  jocounttsdata <- jocount2[c(13,25,31),]
+  cocounttsdata <- cocount2[c(13,25,31),]
+  joperc <- as.zoo(ts(
+    t(jocounttsdata/cocounttsdata),
+    start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+cpa_slice_out <- vector("list", length(gb_pg_slice2))
+cpa_slice_out[[1]] <- fnjocount(gb_pg_slice3,1)
+cpa_slice_out[[2]] <- fnjocount(gb_pg_slice3,2)
+cpa_slice_out[[3]] <- fnjocount(gb_pg_slice3,3)
+cpa_slice_out[[4]] <- fnjocount(gb_pg_slice3,4)
+cpa_slice_out[[5]] <- fnjocount(gb_pg_slice3,5)
+cpa_slice_out[[6]] <- fnjocount(gb_pg_slice3,6)
+cpa_slice_out[[7]] <- fnjocount(gb_pg_slice3,7)
+cpa_slice_out[[8]] <- fnjocount(gb_pg_slice3,8)
+cpa_slice_out[[9]] <- fnjocount(gb_pg_slice3,9)
+cpa_slice_out[[10]] <- fnjocount(gb_pg_slice3,10)
+cpa_slice_out[[11]] <- fnjocount(gb_pg_slice3,11)
+cpa_slice_out[[12]] <- fnjocount(gb_pg_slice3,12)
+cpa_slice_out[[13]] <- fnjocount(gb_pg_slice3,13)
+cpa_slice_out[[14]] <- fnjocount(gb_pg_slice3,14)
+cpa_slice_out[[15]] <- fnjocount(gb_pg_slice3,15)
+cpa_slice_out[[16]] <- fnjocount(gb_pg_slice3,16)
+cpa_slice_out[[17]] <- fnjocount(gb_pg_slice3,17)
+cpa_slice_out[[18]] <- fnjocount(gb_pg_slice3,18)
+
+
+names(cpa_slice_out) <- names(gb_pg_slice2)
+cpa_performance <- as.data.frame(do.call(rbind, cpa_slice_out))
+names(cpa_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+write.csv(cpa_performance, "cpa_performance.csv")
+```
+
+The Work Programme is delivered by providers working in contract package areas (CPAs). There are between one and three contractors in each area. The table below shows performance in each CPA.
+
+```{r cpa_table, echo=FALSE}
+library(formattable)
+cpa_performance2 <- lapply(cpa_performance[,1:3], FUN=formattable::percent, digits=1L)
+cpa_performance2 <- as.data.frame(cpa_performance2)
+rownames(cpa_performance2) <- rownames(cpa_performance)
+names(cpa_performance2) <- names(cpa_performance)
+format_table(cpa_performance2, list(`12-month outcomes` = color_bar("lightblue", 0.5),   `2-year outcomes` = color_bar("lightgreen", 0.5), `Overall outcomes` =color_bar("lightpink", 0.5)))
+```
+
+Work Programme performance varies between CPAs by 6.9 percentage points on the two-year job outcome measure. Surrey, Sussex and Kent, The East Midlands, the rural West Midlands and Coventry; and the East of England have the highest performance. Gloucestershire, Wiltshire and Swindon, and West England and North East Yorkshire and the Humber have the lowest performance.
+
+There are some signs that CPAs with low unemployment rates are performing well (e.g. East of England), but other, strong labour markets show very poor performance (Gloucestershire, Wiltshire and Swindon, and West England). Equally, the rural West Midlands and Coventry has one of the highest unemployment rates but is among the best CPAs in terms of Work Programme performance.
+
+Figure 9: Two-year job outcome measure (%) table of performance across Contract Package Areas (Jun 2011-Sep 2013 referrals)
+
+
+
+
+
+
+
+
+
+
+
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. Average weighted by monthly referral numbers.
+
+The map will mask wide variations in performance within CPAs at the local authority level. Annex two details performance in all local authorities. This shows that, on the one-year Job Outcome Measure, the top five best-performing local authorities are Chichester, Rochford, Woking, Babergh and South Holland.
+
+Figure 10 shows a stronger relationship between Work Programme performance and unemployment than we saw at the last release of statistics. However, we can still see some signs that the Work Programme is producing fewer job outcomes in high unemployment areas.
+
+There is a wide spread around the line, particularly for areas with stronger labour markets (the left-hand side of the graph).  So, as with the CPA-level analysis, it does not appear that the economy alone can explain much of the variation in performance.
+
+Figure 10: Two-year job outcome measure compared to unemployment rates across local authorities (Jun 2011?Mar 2013 referrals)
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+
+##How have Prime contractors performed?
+
+```{r read_primes, echo=FALSE, message=FALSE}
+library(zoo)
+library(tidyr)
+gp_slice <-read.csv(paste0(cohort,"contract_slice.csv"), colClasses="character")
+gp_names <- read.csv(paste0(cohort,"contract.csv"), colClasses="character")
+gp_names <- separate(gp_names, name, c("CPA", "Provider"), sep= ": ", remove=FALSE)
+needed_cols <- c(1, 
+                 grep("JOCOUNT", names(gp_slice)), 
+                 grep("COCOUNT", names(gp_slice)), 
+                 ncol(gp_slice))
+gb_pg_slice2 <- gp_slice[,needed_cols]
+gb_pg_slice2 <- merge(gb_pg_slice2, gp_names[,1:4])
+gb_pg_slice2$name <- factor(gb_pg_slice2$name)
+gb_pg_slice2 <- split(gb_pg_slice2, gb_pg_slice2$name)
+#gb_pg_slice3 <- vector("list", length(gb_pg_slice2))
+
+numericisecon <- function(y){data.frame(gb_pg_slice2[[y]][,"MONTH"],                                       lapply(gb_pg_slice2[[y]][,3:ncol(gb_pg_slice2[[y]])-3] , FUN= as.numeric),
+                                       gb_pg_slice2[[y]]["name"],
+                                       gb_pg_slice2[[y]]["CONTRACT_CODE"],
+gb_pg_slice2[[y]]["CPA"],
+gb_pg_slice2[[y]]["Provider"])}
+gb_pg_slice3 <- lapply(seq_along(gb_pg_slice2), FUN=numericisecon)
+
+
+
+fnjocount <- function(y) {
+  jocount <- lapply(gb_pg_slice3[[y]][,grep("JOCOUNT", names(gb_pg_slice3[[y]]))], zoo::na.trim)
+  cocount <- lapply(gb_pg_slice3[[y]][,grep("COCOUNT", names(gb_pg_slice3[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+  jocounttsdata <- jocount2[c(13,25,31),]
+  cocounttsdata <- cocount2[c(13,25,31),]
+  joperc <- as.zoo(ts(
+    t(jocounttsdata/cocounttsdata),
+    start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+
+contract_sliceout <- lapply(seq_along(gb_pg_slice3), FUN=fnjocount)
+
+
+names(contract_sliceout) <- names(gb_pg_slice3)
+
+contract_performance <- as.data.frame(do.call(rbind, contract_sliceout))
+names(contract_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+needed_columns <- grep("COUNT", names(gb_pg_slice3[[1]]))
+G4S <- grep("G4S", names(gb_pg_slice2))
+Ingeus <- grep("Ingeus", names(gb_pg_slice2))
+Interserve <- grep("Inter", names(gb_pg_slice2))
+Learndirect <- grep("Learndirect", names(gb_pg_slice2))
+Workinglinks <- grep("Links", names(gb_pg_slice2))
+NCG <- grep("NCG", names(gb_pg_slice2))
+PeoplePlus <- grep("People", names(gb_pg_slice2))
+Pertemps <- grep("Per", names(gb_pg_slice2))
+APM <- grep("APM", names(gb_pg_slice2))
+Prospects <- grep("Pros", names(gb_pg_slice2))
+Reed <- grep("Reed", names(gb_pg_slice2))
+Rehab <- grep("Rehab", names(gb_pg_slice2))
+Seetec <- grep("Seetec", names(gb_pg_slice2))
+Serco <- grep("Serco", names(gb_pg_slice2))
+Maximus <- grep("Maximus", names(gb_pg_slice2))
+ShawTrust <- grep("Shaw", names(gb_pg_slice2))
+
+
+contractor_jo <- vector("list",15)
+names(contractor_jo) <- c("G4S", "Ingeus", "Interserve", "Learndirect", "Working Links", "NCG", "People Plus",
+                          "APM", "Prospects", "Reed", "Rehab", "Seetec", "Serco", "Maximus", "ShawTrust CDG")
+contractor_jo[[1]] <- gb_pg_slice3[[G4S[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[G4S[[2]]]][,needed_columns] + 
+  gb_pg_slice3[[G4S[[3]]]][,needed_columns]
+contractor_jo[[2]]<- gb_pg_slice3[[Ingeus[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[2]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[3]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[4]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[5]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[6]]]][,needed_columns] + 
+  gb_pg_slice3[[Ingeus[[7]]]][,needed_columns] 
+contractor_jo[[3]] <- gb_pg_slice3[[Interserve[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Interserve[[2]]]][,needed_columns]
+contractor_jo[[4]] <- gb_pg_slice3[[Learndirect[[1]]]] [,needed_columns]
+contractor_jo[[5]] <- gb_pg_slice3[[Workinglinks[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Workinglinks[[2]]]][,needed_columns] + 
+  gb_pg_slice3[[Workinglinks[[3]]]][,needed_columns]
+contractor_jo[[6]] <- gb_pg_slice3[[NCG[[1]]]] [,needed_columns]+
+  gb_pg_slice3[[NCG[[2]]]][,needed_columns]
+contractor_jo[[7]] <- gb_pg_slice3[[PeoplePlus[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[2]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[3]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[4]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[5]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[6]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[7]]]][,needed_columns] + 
+  gb_pg_slice3[[PeoplePlus[[8]]]][,needed_columns]+ 
+  gb_pg_slice3[[PeoplePlus[[9]]]][,needed_columns]
+contractor_jo[[8]] <- gb_pg_slice3[[3]][,needed_columns] #Pertemps May be called APM
+contractor_jo[[9]] <- gb_pg_slice3[[Prospects[[1]]]][,needed_columns] 
+contractor_jo[[10]] <- gb_pg_slice3[[Reed[[1]]]][,needed_columns] 
+contractor_jo[[11]] <- gb_pg_slice3[[Rehab[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Rehab[[2]]]][,needed_columns]
+contractor_jo[[12]] <- gb_pg_slice3[[Seetec[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Seetec[[2]]]][,needed_columns] + 
+  gb_pg_slice3[[Seetec[[3]]]][,needed_columns]
+contractor_jo[[13]] <- gb_pg_slice3[[Serco[[1]]]][,needed_columns] + 
+  gb_pg_slice3[[Serco[[2]]]][,needed_columns] 
+contractor_jo[[14]] <-  gb_pg_slice3[[Maximus[[2]]]][,needed_columns]  + 
+  gb_pg_slice3[[Maximus[[3]]]][,needed_columns] 
+ contractor_jo[[15]] <- gb_pg_slice3[[ShawTrust[[1]]]][,needed_columns] 
+#names(contractor_jo) <- c("G4S", "Ingeus", "Interserve", "Learndirect", "Working Links", "NCG", "PeoplePlus", "Pertemps", "Prospects", "Reed", "Rehab", "Seetec", "Serco", "Maximus", "ShawTrust CDG")
+ fnjocount <- function(y) {
+  jocount <- lapply(contractor_jo[[y]][,grep("JOCOUNT", names(contractor_jo[[y]]))], zoo::na.trim)
+  cocount <- lapply(contractor_jo[[y]][,grep("COCOUNT", names(contractor_jo[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+  jocounttsdata <- jocount2[c(13,25,31),]
+  cocounttsdata <- cocount2[c(13,25,31),]
+  joperc <- as.zoo(ts(
+    t(jocounttsdata/cocounttsdata),
+    start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+
+
+contractor_slice_out <- lapply(seq_along(contractor_jo), FUN=fnjocount)
+
+names(contractor_slice_out) <- names(contractor_jo)
+contractor_performance <- as.data.frame(do.call(rbind, contractor_slice_out))
+names(contractor_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+
+write.csv(contractor_performance, "contractor_performance.csv")
+```
+
+There are now 15 Prime Contractors delivering the Work Programme, down from 18 originally, following a range of corporate mergers, acquisitions and partnerships. The largest provider by number of contracts is PeoplePlus, a division of Staffline. PeoplePlus have 9 contracts, that were originally EOSWorks, Avanta and A4e contracts. The second largest provider by number of contracts is Ingeus, where there has been no change to the number of contracts. Interserve has also been active, taking over two original contracts awarded to others, and they continue in partnership with Reahb in operating the two Rehab Jobfit contracts.
+
+```{r provider_table, echo=FALSE}
+library(formattable)
+contractor_performance2 <- lapply(contractor_performance[,1:3], FUN=formattable::percent, digits=1L)
+contractor_performance2 <- as.data.frame(contractor_performance2)
+rownames(contractor_performance2) <- rownames(contractor_performance)
+names(contractor_performance2) <- names(contractor_performance)
+formattable(contractor_performance2, list(`12-month outcomes` = color_bar("lightblue", 0.5),   `2-year outcomes` = color_bar("lightgreen", 0.5), `Overall outcomes` =color_bar("lightpink", 0.5)))
+```
+
+
+#Work Programme finances
+
+##What payments have been made?
+
+Up to `r data_date`, we estimate that DWP had paid providers a total of £`r round(sum(payments)/1000000000, 2)` billion. This is made up of:
+
+* £`r round(sum(payments[,1])/1000000,0)` million in attachment fees, which are paid when customers start on the programme.
+
+* £`r round(sum(payments[,2])/1000000,0)` million in job outcome payments.
+
+* £`r round(sum(payments[,3])/1000000,0)` million in sustainment payments.
+
+Figure 11 shows how the payment profile has changed over time. 
+
+Figure 11: Payments to Work Programme providers by payment type
+```{r money_time, fig.height=4, fig_width=6, echo=FALSE}
+ggsave("Figure_11.png", ggmoney, width=8, height=4, units="in")
+print(ggmoney)
+```
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations. 
+
+Over the last year, we estimate that DWP has paid providers £528 million. 75% of this total has been sustainment payments for those who had already secured a Job Outcome. The remaining 25% was for Job Outcome payments.
+
+These figures have been estimated using actual numbers of attachments, job outcome payments and sustainment payments. Job outcome payments incorporate an estimate of the average price discount that providers offered in their bids to DWP.
+
+This shows that the attachment fee income has been in decline over the course of the programme. This is partly due to referrals falling, and the attachment fee being reduced year on year. The fee was reduced to 75% of the original amount in April 2012, and to 50% in April 2013. From April 2014 onwards providers receive no up-front funding via attachment fees at all. Fees for Job Outcomes are now declining as they are reduced by 10% (magnified by discounts offered by providers) each year from April 2014.
+
+##How much has DWP spent on each person?
+
+We estimate that DWP has paid providers an average of £868 for each participant referred. 
+
+These estimates represent average DWP spend and do not reflect what a provider chooses to spend on individual participants. In addition, DWP spend does not equate to actual spending by providers, all of whom would have invested their own (or borrowed) funds in the hope of securing outcome payments at a later date.
+
+The average spend so far is not the same as what the total average spend per participant will be once they have all finished the programme (as some participants are only part-way through their time with providers). 
+
+The average DWP spend per participant has risen over the last quarter by £46.91. This is due to continuing sustainmant payments for those who have already had a job outcome.
+
+#Annex 1: Minimum Performance Levels by contract
+```
+library(zoo)
+pg_slice <- read.csv(paste0(cohort, "contract_pg_slice.csv"), colClasses="character")
+pg_names <- read.csv(paste0(cohort, "payment_groups.csv"), colClasses="character")
+pg_names[,2] <- gsub("\\.", ":",pg_names[,2])
+gp_names <- read.csv(paste0(cohort, "contract.csv"), colClasses="character" )
+needed_cols <- c(1, 
+                 grep("JOCOUNT", names(pg_slice)), 
+                 grep("COCOUNT", names(pg_slice)), 
+                 ncol(pg_slice)-1,
+                 ncol(pg_slice))
+pg_slice2 <- pg_slice[,needed_cols]
+# pg_slice2 <- merge(pg_slice2, pg_names[,1:2], sort=FALSE)
+# pg_slice2 <- merge(pg_slice2, gp_names[,1:2], by.x="CONTRACT_CODE", by.y="CONTRACT_CODE", sort=FALSE)
+# pg_slice2$name.y <- gsub("A4E Ltd", "PeoplePlus", pg_slice2$name.y)
+# pg_slice2$name.y <- gsub("Avanta Enterprise Ltd", "PeoplePlus", pg_slice2$name.y)
+# pg_slice2$name.y <- gsub("EOS-Works Ltd", "PeoplePlus", pg_slice2$name.y)
+# pg_slice2$name.y <- gsub("ESG", "Interserve Working Futures", pg_slice2$name.y)
+# pg_slice2$name.y <- gsub("North East Yorkshire and the Humber : Newcastle College Group", "North East Yorkshire and the Humber : Maximus Employment UK Ltd", pg_slice2$name.y)
+# pg_slice2$name.y <- gsub("JHP Group Ltd", "Learndirect", pg_slice2$name.y)
+pg_slice2$name <- paste0(pg_slice2$PAYMENT_GROUP, ": ", pg_slice2$CONTRACT_CODE)
+pg_slice2$name <- factor(pg_slice2$name)
+pg_slice2 <- split(pg_slice2, pg_slice2$name)
+
+
+numericisepg <- function(y){data.frame(pg_slice2[[y]]["month"],
+                                       lapply(pg_slice2[[y]][,grep("COUNT", names(pg_slice2[[y]]))] , FUN= as.numeric),
+                                       pg_slice2[[y]]["CONTRACT_CODE"],
+                                       pg_slice2[[y]]["PAYMENT_GROUP"],
+                                       pg_slice2[[y]]["name"])}
+
+pg_slice3 <- lapply(seq_along(pg_slice2), FUN=numericisepg)
+
+fnpgjocount <- function(y) {
+  jocount <- lapply(pg_slice3[[y]][,grep("JOCOUNT", names(pg_slice3[[y]]))], zoo::na.trim)
+  cocount <- lapply(pg_slice3[[y]][,grep("COCOUNT", names(pg_slice3[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+#   jocounttsdata <- jocount2[c(13,25,31),]
+#   cocounttsdata <- cocount2[c(13,25,31),]
+#   joperc <- as.zoo(ts(
+#     t(jocounttsdata/cocounttsdata),
+#     start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+pg_sliceout <- lapply(seq_along(pg_slice3), FUN=fnpgjocount)
+
+
+#names(pg_sliceout) <- names(pg_performance)
+pg_performance <- as.data.frame(do.call(rbind, pg_sliceout))
+names(pg_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+pg_performance$codes <- row.names(pg_performance)
+pg_performance$PAYMENT_GROUP <- do.call(rbind, strsplit(pg_performance$codes, ": "))[,1]
+pg_performance$CONTRACT_CODE <- do.call(rbind, strsplit(pg_performance$codes, ": "))[,2]
+pg_performance <- merge(pg_performance, pg_names[,1:2], sort=FALSE)
+pg_performance <- merge(pg_performance, gp_names[,1:2], by.x="CONTRACT_CODE", by.y="CONTRACT_CODE", sort=FALSE)
+pg_performance$name.y <- gsub("A4E Ltd", "PeoplePlus", pg_performance$name.y)
+pg_performance$name.y <- gsub("Avanta Enterprise Ltd", "PeoplePlus", pg_performance$name.y)
+pg_performance$name.y <- gsub("EOS-Works Ltd", "PeoplePlus", pg_performance$name.y)
+pg_performance$name.y <- gsub("ESG", "Interserve Working Futures", pg_performance$name.y)
+#pg_performance$name.y <- gsub("North East Yorkshire and the Humber : Newcastle College Group", "North East Yorkshire and the Humber : Maximus Employment UK Ltd", pg_performance$name.y)
+pg_performance$name.y <- gsub("JHP Group Ltd", "Learndirect", pg_performance$name.y)
+
+splat_pg_performance <- split(pg_performance, pg_performance$PAYMENT_GROUP)
+jsa1824contract_performance <- splat_pg_performance[[1]]
+jsa25pluscontract_performance <- splat_pg_performance[[2]]
+esanewexc12plus_performance <- splat_pg_performance[[7]]
+
+write.csv(jsa1824contract_performance, "jsa1824contract_performance.csv")
+write.csv(jsa25pluscontract_performance, "jsa25pluscontractperformance.csv")
+write.csv(esanewexc12plus_performance, "esanewexc12_contract_performance.csv")
+library(ggplot2)
+library(scales)
+library(ggthemes)
+jsa18plotting <- jsa1824contract_performance[,c(1,4,8)]
+
+names(jsa18plotting) <- c("contract_code", "outcomes", "contract_name")
+jsa18plotting$contract_name <- factor(jsa18plotting$contract_name)
+
+jsa18plot <- ggplot(jsa18plotting, aes(x=reorder(contract_name,outcomes), y=outcomes)) + 
+  geom_bar(stat="identity", fill="blue") +
+  theme_economist_white(gray_bg=FALSE, base_size=12) +
+  scale_y_continuous(labels=percent) + labs(x="", y="") +
+  geom_hline(yintercept=0.44)
+```
+The 18 CPAs in which Primes hold contracts are detailed in Table 3, below.
+Table 2: Work Programme Contract Package Areas
+
+
+The following figures show performance on a contract-by-contract basis against minimum performance levels capturing the latest year of data, for the three key participant groups captured by the MPL.
+
+The current figures give up to the end of year 4. We have used our two-year performance measure and DWP's profile for the achievement of their revised MPL figures to show performance at the two-year point for all Work Programme participants who have completed two years, and DWP's profile for the same two-year point.
+
+In these charts we have not separated out the economy adjustment. Our view is that the economy adjustment should differ between Contract Package Areas depending on whether the strength or weakness of the local labour market makes closing the gaps with national targets more or less challenging.
+
+Figure 12: MPL performance for the ?JSA 18 to 24? group (Jan?Mar 2014)
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+ 
+Figure 13: MPL performance for the ?JSA 25 and over? group (Jan?Mar 2014)
+
+ Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+ 
+Figure 14: MPL performance for the ?New ESA Claimants? group (Jan?Mar 2014)
+
+Source: DWP: Information, Governance and Security Directorate; Inclusion calculations.
+
+#Annex 2: Performance in local authorities
+```{r read_la, echo=FALSE}
+library(zoo)
+gp_slice <- read.csv(paste0(cohort, "la_slice.csv"), colClasses="character")
+gp_names <- read.csv(paste0(cohort, "las.csv"), colClasses="character")
+needed_cols <- c(1, 
+                 grep("JOCOUNT", names(gp_slice)), 
+                 grep("COCOUNT", names(gp_slice)), 
+                 ncol(gp_slice))
+la_slice2 <- gp_slice[,needed_cols]
+la_slice2 <- merge(la_slice2, gp_names[,1:2])
+la_slice2$name <- factor(la_slice2$name)
+la_slice2 <- split(la_slice2, la_slice2$name)
+
+
+numericisela <- function(y){data.frame(la_slice2[[y]][,"MONTH"],                                       lapply(la_slice2[[y]][,3:ncol(la_slice2[[y]])-1] , FUN= as.numeric),
+                                       la_slice2[[y]]["name"],
+                                       la_slice2[[y]]["LA_CODE"])}
+la_slice3 <- lapply(seq_along(la_slice2), FUN=numericisela)
+
+fnlajocount <- function(y) {
+  jocount <- lapply(la_slice3[[y]][,grep("JOCOUNT", names(la_slice3[[y]]))], zoo::na.trim)
+  cocount <- lapply(la_slice3[[y]][,grep("COCOUNT", names(la_slice3[[y]]))], zoo::na.trim)
+  jocount <- lapply(jocount, function(x) { length(x) <- 31; x }) # make all length 31
+  jocount2  <- do.call(cbind, jocount)
+  cocount <- lapply(cocount, function(x) { length(x) <- 31; x }) # make all length 31
+  cocount2  <- do.call(cbind, cocount)
+  joprofile <- rowSums(jocount2, na.rm=TRUE)/rowSums(cocount2, na.rm=TRUE)
+  jocounttsdata <- jocount2[c(13,25,31),]
+  cocounttsdata <- cocount2[c(13,25,31),]
+  joperc <- as.zoo(ts(
+    t(jocounttsdata/cocounttsdata),
+    start=c(2011,6), frequency=12))
+  jogpsummary <- joprofile[c(13,25,31)]
+  return(jogpsummary)
+}
+la_sliceout <- lapply(seq_along(la_slice2), FUN=fnlajocount)
+
+
+names(la_sliceout) <- names(la_slice2)
+la_performance <- as.data.frame(do.call(rbind, la_sliceout))
+names(la_performance) <- c("12-month outcomes", "2-year outcomes", "Overall outcomes")
+
+write.csv(la_performance, "la_performance.csv")
+```
+Table 3: Job Outcome measures (Jun 2011-Mar 2014 referrals) and unemployment rates (Jan 2011-Mar 2015) by local authority
+
